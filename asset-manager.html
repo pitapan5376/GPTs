@@ -241,12 +241,12 @@
                 <thead>
                     <tr>
                         <th>項目</th>
+                        <th>金額</th>
                         <th class="checkbox-col">Au</th>
                         <th class="checkbox-col">USD</th>
                         <th class="checkbox-col">JPY</th>
                         <th class="checkbox-col">CHF</th>
                         <th class="checkbox-col">OTH</th>
-                        <th>金額</th>
                     </tr>
                 </thead>
                 <tbody id="assetBody">
@@ -331,12 +331,12 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${item.name}</td>
+                    <td class="editable number-format" onclick="editAmount(${index})">${formatNumber(item.amount)}</td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.Au ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.USD ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.JPY ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.CHF ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.OTH ? 'checked' : ''} disabled></td>
-                    <td class="editable number-format" onclick="editAmount(${index})">${formatNumber(item.amount)}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -348,8 +348,8 @@
             totalTr.className = 'total-row';
             totalTr.innerHTML = `
                 <td>計</td>
-                <td colspan="5"></td>
                 <td class="number-format">${formatNumber(grandTotal)}</td>
+                <td colspan="5"></td>
             `;
             tbody.appendChild(totalTr);
 
@@ -358,12 +358,12 @@
             categoryTr.className = 'total-row';
             categoryTr.innerHTML = `
                 <td>カテゴリ別</td>
+                <td></td>
                 <td class="number-format">${formatNumber(totals.Au)}</td>
                 <td class="number-format">${formatNumber(totals.USD)}</td>
                 <td class="number-format">${formatNumber(totals.JPY)}</td>
                 <td class="number-format">${formatNumber(totals.CHF)}</td>
                 <td class="number-format">${formatNumber(totals.OTH)}</td>
-                <td></td>
             `;
             tbody.appendChild(categoryTr);
 
@@ -376,12 +376,12 @@
             });
             percentTr.innerHTML = `
                 <td>構成比</td>
+                <td>100.0%</td>
                 <td>${percentages[0]}</td>
                 <td>${percentages[1]}</td>
                 <td>${percentages[2]}</td>
                 <td>${percentages[3]}</td>
                 <td>${percentages[4]}</td>
-                <td>100.0%</td>
             `;
             tbody.appendChild(percentTr);
         }
