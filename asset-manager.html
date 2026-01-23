@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>資産管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f7;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 8px;
+            text-align: right;
+            border-bottom: 1px solid #e5e5e7;
+        }
+
+        th:first-child, td:first-child {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        th {
+            background: #f9f9f9;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .editable {
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.2s;
+        }
+
+        .editable:active {
+            background: #f0f0f0;
+        }
+
+        .total-row {
+            background: #f9f9f9;
+            font-weight: 600;
+        }
+
+        .percentage-row {
+            background: #f0f0f5;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .checkbox-col {
+            width: 40px;
+            text-align: center;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 24px;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .modal-input {
+            width: 100%;
+            font-size: 24px;
+            padding: 16px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            text-align: right;
+            margin-bottom: 16px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.7;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e5e5e7;
+            color: #333;
+        }
+
+        .actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 16px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .actions .btn {
+            font-size: 14px;
+            padding: 12px;
+        }
+
+        .btn-copy {
+            background: #34c759;
+            color: white;
+        }
+
+        .btn-reset {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeInOut 2s;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
+        .number-format {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>資産管理</h1>
+        <div class="table-container">
+            <table id="assetTable">
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th class="checkbox-col">Au</th>
+                        <th class="checkbox-col">USD</th>
+                        <th class="checkbox-col">JPY</th>
+                        <th class="checkbox-col">CHF</th>
+                        <th class="checkbox-col">OTH</th>
+                        <th>金額</th>
+                    </tr>
+                </thead>
+                <tbody id="assetBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-copy" onclick="copyMarkdown()">Markdown表コピー</button>
+        <button class="btn btn-reset" onclick="resetData()">リセット</button>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalTitle"></div>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" class="modal-input" id="modalInput">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'assetData';
+
+        const DEFAULT_DATA = [
+            { name: '現物', amount: 1000000, categories: { Au: true, USD: false, JPY: false, CHF: false, OTH: false } },
+            { name: 'KFT積立', amount: 100000, categories: { Au: true, USD: false, JPY: false, CHF: false, OTH: false } },
+            { name: 'STRIPS債', amount: 500000, categories: { Au: false, USD: true, JPY: false, CHF: false, OTH: false } },
+            { name: '量子', amount: 150000, categories: { Au: false, USD: true, JPY: false, CHF: false, OTH: false } },
+            { name: '株S', amount: 200000, categories: { Au: false, USD: false, JPY: true, CHF: false, OTH: false } },
+            { name: '株W', amount: 50000, categories: { Au: false, USD: false, JPY: true, CHF: false, OTH: false } },
+            { name: 'SBI 余力', amount: 100000, categories: { Au: false, USD: false, JPY: true, CHF: false, OTH: false } },
+            { name: 'CHF SBI', amount: 100000, categories: { Au: false, USD: false, JPY: false, CHF: true, OTH: false } },
+            { name: 'CHF wise', amount: 200000, categories: { Au: false, USD: false, JPY: false, CHF: true, OTH: false } },
+            { name: 'TANGEM', amount: 150000, categories: { Au: false, USD: false, JPY: false, CHF: false, OTH: true } }
+        ];
+
+        let currentData = [];
+        let editingIndex = -1;
+
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                currentData = JSON.parse(saved);
+            } else {
+                currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString('ja-JP');
+        }
+
+        function calculateTotals() {
+            const totals = { Au: 0, USD: 0, JPY: 0, CHF: 0, OTH: 0 };
+            let grandTotal = 0;
+
+            currentData.forEach(item => {
+                grandTotal += item.amount;
+                Object.keys(totals).forEach(cat => {
+                    if (item.categories[cat]) {
+                        totals[cat] += item.amount;
+                    }
+                });
+            });
+
+            return { totals, grandTotal };
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('assetBody');
+            tbody.innerHTML = '';
+
+            currentData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.name}</td>
+                    <td class="checkbox-col"><input type="checkbox" ${item.categories.Au ? 'checked' : ''} disabled></td>
+                    <td class="checkbox-col"><input type="checkbox" ${item.categories.USD ? 'checked' : ''} disabled></td>
+                    <td class="checkbox-col"><input type="checkbox" ${item.categories.JPY ? 'checked' : ''} disabled></td>
+                    <td class="checkbox-col"><input type="checkbox" ${item.categories.CHF ? 'checked' : ''} disabled></td>
+                    <td class="checkbox-col"><input type="checkbox" ${item.categories.OTH ? 'checked' : ''} disabled></td>
+                    <td class="editable number-format" onclick="editAmount(${index})">${formatNumber(item.amount)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const { totals, grandTotal } = calculateTotals();
+
+            // Total row
+            const totalTr = document.createElement('tr');
+            totalTr.className = 'total-row';
+            totalTr.innerHTML = `
+                <td>計</td>
+                <td colspan="5"></td>
+                <td class="number-format">${formatNumber(grandTotal)}</td>
+            `;
+            tbody.appendChild(totalTr);
+
+            // Category totals row
+            const categoryTr = document.createElement('tr');
+            categoryTr.className = 'total-row';
+            categoryTr.innerHTML = `
+                <td>カテゴリ別</td>
+                <td class="number-format">${formatNumber(totals.Au)}</td>
+                <td class="number-format">${formatNumber(totals.USD)}</td>
+                <td class="number-format">${formatNumber(totals.JPY)}</td>
+                <td class="number-format">${formatNumber(totals.CHF)}</td>
+                <td class="number-format">${formatNumber(totals.OTH)}</td>
+                <td></td>
+            `;
+            tbody.appendChild(categoryTr);
+
+            // Percentage row
+            const percentTr = document.createElement('tr');
+            percentTr.className = 'percentage-row';
+            const percentages = Object.keys(totals).map(cat => {
+                const pct = grandTotal > 0 ? (totals[cat] / grandTotal * 100).toFixed(1) : 0;
+                return `${pct}%`;
+            });
+            percentTr.innerHTML = `
+                <td>構成比</td>
+                <td>${percentages[0]}</td>
+                <td>${percentages[1]}</td>
+                <td>${percentages[2]}</td>
+                <td>${percentages[3]}</td>
+                <td>${percentages[4]}</td>
+                <td>100.0%</td>
+            `;
+            tbody.appendChild(percentTr);
+        }
+
+        function editAmount(index) {
+            editingIndex = index;
+            const item = currentData[index];
+            document.getElementById('modalTitle').textContent = `${item.name} の金額を編集`;
+            document.getElementById('modalInput').value = item.amount;
+            document.getElementById('editModal').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('modalInput').focus();
+                document.getElementById('modalInput').select();
+            }, 100);
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingIndex = -1;
+        }
+
+        function saveEdit() {
+            const value = parseInt(document.getElementById('modalInput').value);
+            if (!isNaN(value) && value >= 0) {
+                currentData[editingIndex].amount = value;
+                saveData();
+                renderTable();
+                closeModal();
+                showToast('保存しました');
+            } else {
+                alert('有効な数値を入力してください');
+            }
+        }
+
+        function copyMarkdown() {
+            const { totals, grandTotal } = calculateTotals();
+
+            let markdown = '|項目|金額|Au|USD|JPY|CHF|OTH|\n';
+            markdown += '|---|---|---|---|---|---|---|\n';
+
+            currentData.forEach(item => {
+                const cats = ['Au', 'USD', 'JPY', 'CHF', 'OTH'].map(cat =>
+                    item.categories[cat] ? cat : ''
+                );
+                markdown += `|${item.name}|${formatNumber(item.amount).replace(/,/g, ',')}|${cats[0]}|${cats[1]}|${cats[2]}|${cats[3]}|${cats[4]}|\n`;
+            });
+
+            const percentages = Object.keys(totals).map(cat => {
+                const pct = grandTotal > 0 ? (totals[cat] / grandTotal * 100).toFixed(1) : '0.0';
+                return `${pct}%`;
+            });
+
+            markdown += `|計|${formatNumber(grandTotal).replace(/,/g, ',')}|${formatNumber(totals.Au).replace(/,/g, ',')}|${formatNumber(totals.USD).replace(/,/g, ',')}|${formatNumber(totals.JPY).replace(/,/g, ',')}|${formatNumber(totals.CHF).replace(/,/g, ',')}|${formatNumber(totals.OTH).replace(/,/g, ',')}|\n`;
+            markdown += `|構成比|100.0%|${percentages[0]}|${percentages[1]}|${percentages[2]}|${percentages[3]}|${percentages[4]}|\n`;
+
+            navigator.clipboard.writeText(markdown).then(() => {
+                showToast('Markdown表をコピーしました');
+            }).catch(() => {
+                showToast('コピーに失敗しました');
+            });
+        }
+
+        function resetData() {
+            if (confirm('初期データに戻しますか？')) {
+                currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                saveData();
+                renderTable();
+                showToast('リセットしました');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // Initialize
+        loadData();
+        renderTable();
+
+        // Modal close on background click
+        document.getElementById('editModal').addEventListener('click', (e) => {
+            if (e.target.id === 'editModal') {
+                closeModal();
+            }
+        });
+
+        // Enter key to save
+        document.getElementById('modalInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveEdit();
+            }
+        });
+    </script>
+</body>
+</html>
