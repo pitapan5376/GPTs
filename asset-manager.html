@@ -289,6 +289,7 @@
 
         let currentData = [];
         let editingIndex = -1;
+        let editingField = ''; // 'name' or 'amount'
 
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -330,7 +331,7 @@
             currentData.forEach((item, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${item.name}</td>
+                    <td class="editable" onclick="editName(${index})">${item.name}</td>
                     <td class="editable number-format" onclick="editAmount(${index})">${formatNumber(item.amount)}</td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.Au ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.USD ? 'checked' : ''} disabled></td>
@@ -386,33 +387,72 @@
             tbody.appendChild(percentTr);
         }
 
+        function editName(index) {
+            editingIndex = index;
+            editingField = 'name';
+            const item = currentData[index];
+            const input = document.getElementById('modalInput');
+
+            document.getElementById('modalTitle').textContent = `項目名を編集`;
+            input.type = 'text';
+            input.inputMode = 'text';
+            input.value = item.name;
+            document.getElementById('editModal').style.display = 'block';
+
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 100);
+        }
+
         function editAmount(index) {
             editingIndex = index;
+            editingField = 'amount';
             const item = currentData[index];
+            const input = document.getElementById('modalInput');
+
             document.getElementById('modalTitle').textContent = `${item.name} の金額を編集`;
-            document.getElementById('modalInput').value = item.amount;
+            input.type = 'number';
+            input.inputMode = 'numeric';
+            input.value = item.amount;
             document.getElementById('editModal').style.display = 'block';
+
             setTimeout(() => {
-                document.getElementById('modalInput').focus();
-                document.getElementById('modalInput').select();
+                input.focus();
+                input.select();
             }, 100);
         }
 
         function closeModal() {
             document.getElementById('editModal').style.display = 'none';
             editingIndex = -1;
+            editingField = '';
         }
 
         function saveEdit() {
-            const value = parseInt(document.getElementById('modalInput').value);
-            if (!isNaN(value) && value >= 0) {
-                currentData[editingIndex].amount = value;
-                saveData();
-                renderTable();
-                closeModal();
-                showToast('保存しました');
-            } else {
-                alert('有効な数値を入力してください');
+            const inputValue = document.getElementById('modalInput').value;
+
+            if (editingField === 'name') {
+                if (inputValue.trim()) {
+                    currentData[editingIndex].name = inputValue.trim();
+                    saveData();
+                    renderTable();
+                    closeModal();
+                    showToast('保存しました');
+                } else {
+                    alert('項目名を入力してください');
+                }
+            } else if (editingField === 'amount') {
+                const value = parseInt(inputValue);
+                if (!isNaN(value) && value >= 0) {
+                    currentData[editingIndex].amount = value;
+                    saveData();
+                    renderTable();
+                    closeModal();
+                    showToast('保存しました');
+                } else {
+                    alert('有効な数値を入力してください');
+                }
             }
         }
 
