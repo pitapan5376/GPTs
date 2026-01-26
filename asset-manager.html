@@ -205,6 +205,11 @@
             color: white;
         }
 
+        .btn-gold {
+            background: #ffcc00;
+            color: #333;
+        }
+
         .btn-reset {
             background: #ff3b30;
             color: white;
@@ -257,6 +262,7 @@
 
     <div class="actions">
         <button class="btn btn-copy" onclick="copyMarkdown()">Markdown表コピー</button>
+        <button class="btn btn-gold" onclick="manualUpdateGoldPrice()">金価格更新</button>
         <button class="btn btn-reset" onclick="resetData()">リセット</button>
     </div>
 
@@ -275,7 +281,7 @@
         const STORAGE_KEY = 'assetData';
 
         const DEFAULT_DATA = [
-            { name: '現物', amount: 1000000, categories: { Au: true, USD: false, JPY: false, CHF: false, OTH: false } },
+            { name: '現物', quantity: 75, unitPrice: 12000, amount: 900000, categories: { Au: true, USD: false, JPY: false, CHF: false, OTH: false } },
             { name: 'KFT積立', amount: 100000, categories: { Au: true, USD: false, JPY: false, CHF: false, OTH: false } },
             { name: 'STRIPS債', amount: 500000, categories: { Au: false, USD: true, JPY: false, CHF: false, OTH: false } },
             { name: '量子', amount: 150000, categories: { Au: false, USD: true, JPY: false, CHF: false, OTH: false } },
@@ -287,9 +293,12 @@
             { name: 'TANGEM', amount: 150000, categories: { Au: false, USD: false, JPY: false, CHF: false, OTH: true } }
         ];
 
+        const GOLD_PRICE_KEY = 'goldUnitPrice';
+        const GOLD_PRICE_UPDATE_KEY = 'goldPriceUpdated';
+
         let currentData = [];
         let editingIndex = -1;
-        let editingField = ''; // 'name' or 'amount'
+        let editingField = ''; // 'name', 'amount', or 'quantity'
 
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -298,6 +307,13 @@
             } else {
                 currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
             }
+
+            // Update amount for items with quantity and unitPrice
+            currentData.forEach(item => {
+                if (item.quantity !== undefined && item.unitPrice !== undefined) {
+                    item.amount = Math.round(item.quantity * item.unitPrice);
+                }
+            });
         }
 
         function saveData() {
@@ -330,9 +346,25 @@
 
             currentData.forEach((item, index) => {
                 const tr = document.createElement('tr');
+                let amountDisplay = '';
+
+                if (item.quantity !== undefined && item.unitPrice !== undefined) {
+                    // Gold item with quantity and unit price
+                    amountDisplay = `
+                        <div style="font-size: 11px; color: #666;">
+                            ${formatNumber(item.quantity)}g × ${formatNumber(item.unitPrice)}円
+                        </div>
+                        <div class="number-format">${formatNumber(item.amount)}</div>
+                    `;
+                } else {
+                    amountDisplay = `<div class="number-format">${formatNumber(item.amount)}</div>`;
+                }
+
+                const editAction = item.quantity !== undefined ? `editQuantity(${index})` : `editAmount(${index})`;
+
                 tr.innerHTML = `
                     <td class="editable" onclick="editName(${index})">${item.name}</td>
-                    <td class="editable number-format" onclick="editAmount(${index})">${formatNumber(item.amount)}</td>
+                    <td class="editable" onclick="${editAction}">${amountDisplay}</td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.Au ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.USD ? 'checked' : ''} disabled></td>
                     <td class="checkbox-col"><input type="checkbox" ${item.categories.JPY ? 'checked' : ''} disabled></td>
@@ -423,8 +455,29 @@
             }, 100);
         }
 
+        function editQuantity(index) {
+            editingIndex = index;
+            editingField = 'quantity';
+            const item = currentData[index];
+            const input = document.getElementById('modalInput');
+
+            document.getElementById('modalTitle').textContent = `${item.name} の数量を編集 (グラム)`;
+            input.type = 'number';
+            input.inputMode = 'decimal';
+            input.step = '0.1';
+            input.value = item.quantity;
+            document.getElementById('editModal').style.display = 'block';
+
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 100);
+        }
+
         function closeModal() {
             document.getElementById('editModal').style.display = 'none';
+            const input = document.getElementById('modalInput');
+            input.removeAttribute('step');
             editingIndex = -1;
             editingField = '';
         }
@@ -453,7 +506,79 @@
                 } else {
                     alert('有効な数値を入力してください');
                 }
+            } else if (editingField === 'quantity') {
+                const value = parseFloat(inputValue);
+                if (!isNaN(value) && value >= 0) {
+                    currentData[editingIndex].quantity = value;
+                    currentData[editingIndex].amount = Math.round(value * currentData[editingIndex].unitPrice);
+                    saveData();
+                    renderTable();
+                    closeModal();
+                    showToast('保存しました');
+                } else {
+                    alert('有効な数値を入力してください');
+                }
             }
+        }
+
+        async function updateGoldPrice() {
+            showToast('金価格を取得中...');
+
+            try {
+                // Try to fetch from a free gold price API
+                // Note: This requires CORS-enabled API or API key
+                const response = await fetch('https://api.metals.live/v1/spot/gold');
+                const data = await response.json();
+
+                if (data && data[0] && data[0].price) {
+                    // Convert USD per oz to JPY per g
+                    // Assuming 1 oz = 31.1035 g and USD/JPY rate
+                    const usdPerOz = data[0].price;
+                    const usdjpyResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                    const usdjpyData = await usdjpyResponse.json();
+                    const usdjpyRate = usdjpyData.rates.JPY;
+
+                    const jpyPerG = Math.round((usdPerOz / 31.1035) * usdjpyRate);
+
+                    if (confirm(`取得した金価格: ${formatNumber(jpyPerG)}円/g\nこの価格を設定しますか？`)) {
+                        updateGoldUnitPrice(jpyPerG);
+                    }
+                } else {
+                    throw new Error('Price data not available');
+                }
+            } catch (error) {
+                console.error('Failed to fetch gold price:', error);
+                showToast('価格取得に失敗しました');
+                // Fallback to manual input
+                setTimeout(manualUpdateGoldPrice, 1000);
+            }
+        }
+
+        function manualUpdateGoldPrice() {
+            const currentPrice = currentData.find(item => item.quantity !== undefined)?.unitPrice || 12000;
+            const newPrice = prompt(`金の買取価格を入力してください（円/g）`, currentPrice);
+
+            if (newPrice && !isNaN(newPrice) && parseFloat(newPrice) > 0) {
+                updateGoldUnitPrice(Math.round(parseFloat(newPrice)));
+            }
+        }
+
+        function updateGoldUnitPrice(newPrice) {
+            // Update all items with quantity field
+            currentData.forEach(item => {
+                if (item.quantity !== undefined) {
+                    item.unitPrice = newPrice;
+                    item.amount = Math.round(item.quantity * newPrice);
+                }
+            });
+
+            // Cache the price
+            localStorage.setItem(GOLD_PRICE_KEY, newPrice);
+            localStorage.setItem(GOLD_PRICE_UPDATE_KEY, new Date().toISOString());
+
+            saveData();
+            renderTable();
+            showToast(`金価格を${formatNumber(newPrice)}円/gに更新しました`);
         }
 
         function copyMarkdown() {
