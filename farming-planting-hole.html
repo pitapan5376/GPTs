@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ヤマモモ植穴断面図</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        svg {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景（地面） -->
+  <rect x="0" y="250" width="800" height="350" fill="#8B7355" opacity="0.3"/>
+
+  <!-- 地表面ライン -->
+  <line x1="0" y1="250" x2="800" y2="250" stroke="#000" stroke-width="3" stroke-dasharray="5,5"/>
+  <text x="10" y="245" font-size="16" font-weight="bold">地表面</text>
+
+  <!-- 外周部の植穴（直径140cm、深さ30cm） -->
+  <path d="M 160 250 L 160 400 L 260 450 L 540 450 L 640 400 L 640 250"
+        fill="#D2B48C" stroke="#654321" stroke-width="2"/>
+
+  <!-- 中央部の深掘り（直径60-80cm、深さ50cm） -->
+  <rect x="320" y="450" width="160" height="100"
+        fill="#C19A6B" stroke="#654321" stroke-width="2"/>
+
+  <!-- 排水層（軽石・砕石） -->
+  <rect x="320" y="490" width="160" height="60"
+        fill="#A9A9A9" stroke="#696969" stroke-width="2"/>
+  <circle cx="340" cy="510" r="8" fill="#808080"/>
+  <circle cx="370" cy="525" r="6" fill="#808080"/>
+  <circle cx="400" cy="515" r="7" fill="#808080"/>
+  <circle cx="430" cy="530" r="6" fill="#808080"/>
+  <circle cx="460" cy="520" r="7" fill="#808080"/>
+
+  <!-- 高植え部分 -->
+  <ellipse cx="400" cy="250" rx="120" ry="40"
+           fill="#8B6914" stroke="#654321" stroke-width="2" opacity="0.7"/>
+
+  <!-- 矢印マーカー定義 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#000"/>
+    </marker>
+    <marker id="arrowhead2" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#000"/>
+    </marker>
+    <marker id="arrowhead3" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#FF6347"/>
+    </marker>
+    <marker id="arrowhead4" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#FF6347"/>
+    </marker>
+    <marker id="arrowhead5" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#0000FF"/>
+    </marker>
+    <marker id="arrowhead6" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#0000FF"/>
+    </marker>
+    <marker id="arrowhead7" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#FF0000"/>
+    </marker>
+    <marker id="arrowhead8" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#FF0000"/>
+    </marker>
+    <marker id="arrowhead9" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#000"/>
+    </marker>
+    <marker id="arrowhead10" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#000"/>
+    </marker>
+    <marker id="arrowhead11" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#8B6914"/>
+    </marker>
+    <marker id="arrowhead12" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="10 0, 0 5, 10 10" fill="#8B6914"/>
+    </marker>
+  </defs>
+
+  <!-- 寸法線と注釈 -->
+  <!-- 全体の直径 -->
+  <line x1="160" y1="580" x2="640" y2="580" stroke="#000" stroke-width="2" marker-end="url(#arrowhead)" marker-start="url(#arrowhead2)"/>
+  <text x="360" y="575" font-size="18" font-weight="bold" text-anchor="middle">直径140cm</text>
+
+  <!-- 外周部の深さ -->
+  <line x1="680" y1="250" x2="680" y2="400" stroke="#FF6347" stroke-width="2" marker-end="url(#arrowhead3)" marker-start="url(#arrowhead4)"/>
+  <text x="690" y="330" font-size="16" fill="#FF6347" font-weight="bold">30cm</text>
+  <text x="690" y="350" font-size="14" fill="#FF6347">(現状)</text>
+
+  <!-- 中央部の直径 -->
+  <line x1="320" y1="470" x2="480" y2="470" stroke="#0000FF" stroke-width="2" marker-end="url(#arrowhead5)" marker-start="url(#arrowhead6)"/>
+  <text x="400" y="465" font-size="14" fill="#0000FF" text-anchor="middle">直径60-80cm</text>
+
+  <!-- 追加掘削部分 -->
+  <line x1="100" y1="400" x2="100" y2="490" stroke="#FF0000" stroke-width="3" marker-end="url(#arrowhead7)" marker-start="url(#arrowhead8)"/>
+  <text x="20" y="450" font-size="16" fill="#FF0000" font-weight="bold">追加掘削</text>
+  <text x="20" y="470" font-size="16" fill="#FF0000" font-weight="bold">20cm</text>
+
+  <!-- 合計深さ -->
+  <line x1="120" y1="250" x2="120" y2="490" stroke="#000" stroke-width="2" marker-end="url(#arrowhead9)" marker-start="url(#arrowhead10)"/>
+  <text x="40" y="370" font-size="18" font-weight="bold">合計50cm</text>
+
+  <!-- 排水層の高さ -->
+  <line x1="500" y1="490" x2="500" y2="550" stroke="#696969" stroke-width="2"/>
+  <text x="510" y="525" font-size="14" fill="#696969">排水層10-15cm</text>
+
+  <!-- 高植え -->
+  <line x1="280" y1="250" x2="280" y2="210" stroke="#8B6914" stroke-width="2" marker-end="url(#arrowhead11)" marker-start="url(#arrowhead12)"/>
+  <text x="200" y="230" font-size="14" fill="#8B6914" font-weight="bold">高植え+10-20cm</text>
+
+  <!-- ラベル -->
+  <text x="400" y="350" font-size="16" text-anchor="middle" font-weight="bold">植栽土（改良土）</text>
+  <text x="400" y="530" font-size="14" text-anchor="middle" fill="white" font-weight="bold">軽石・砕石</text>
+
+  <!-- タイトル -->
+  <text x="400" y="30" font-size="24" font-weight="bold" text-anchor="middle">ヤマモモ植穴断面図（修正版）</text>
+  <text x="400" y="55" font-size="16" text-anchor="middle">中央部を追加掘削した場合</text>
+</svg>
+    </div>
+</body>
+</html>
