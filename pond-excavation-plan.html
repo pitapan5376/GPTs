@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>0時エリア池 掘削計画図</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #f5f5f0;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.4em;
+      margin-bottom: 4px;
+      color: #2c4a1e;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 0.85em;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .diagram-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .diagram-box {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .diagram-box h2 {
+      font-size: 1em;
+      margin: 0 0 12px 0;
+      color: #2c4a1e;
+      border-bottom: 2px solid #4a8c2a;
+      padding-bottom: 6px;
+    }
+    svg text {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      font-size: 0.78em;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-swatch {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #999;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+<h1>0時エリア池 掘削計画図</h1>
+<p class="subtitle">平面寸法: 5m（0時↔6時）× 9m（3時↔9時）　最深部: 70cm　大陸棚: 25cm　スロープ: 25°</p>
+
+<div class="diagram-container">
+  <div class="diagram-box">
+    <h2>① 平面図（上から見た図）</h2>
+    <div id="plan-view"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#5b9bd5"></div>最深部（約2m×5.7m）</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#7fc8a4"></div>スロープ帯（25°）</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#a8d5b5"></div>大陸棚（深さ25cm）</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#8B6914"></div>0時背壁（40cm）</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c8e6a0"></div>セスバニア帯（6時側）</div>
+    </div>
+  </div>
+
+  <div class="diagram-box">
+    <h2>② 断面図A — 短辺方向（0時↔6時、5m）</h2>
+    <div id="section-short"></div>
+  </div>
+
+  <div class="diagram-box">
+    <h2>③ 断面図B — 長辺方向（3時↔9時、9m）</h2>
+    <div id="section-long"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 共通カラーパレット
+// ============================================================
+const C = {
+  wall:     '#8B6914',
+  shelf:    '#a8d5b5',
+  slope:    '#7fc8a4',
+  deep:     '#5b9bd5',
+  sesb:     '#c8e6a0',
+  ground:   '#d4c5a0',
+  sky:      '#e8f4fd',
+  water:    'rgba(91,155,213,0.25)',
+  overflow: '#e07030',
+  drain:    '#c06020',
+  text:     '#333',
+  dim:      '#555',
+  dimLine:  '#999',
+};
+
+// ============================================================
+// ① 平面図
+// ============================================================
+(function drawPlan() {
+  // 実寸 (m): 5m × 9m
+  // 配置（短辺=5m: 上=0時, 下=6時）
+  const spec = {
+    W: 9,    // 3時↔9時 (横)
+    H: 5,    // 0時↔6時 (縦)
+    shelf_3: 0.7,
+    shelf_9: 0.7,
+    shelf_0: 0.3,
+    shelf_6: 0.8,
+    slope:   0.97,
+    backwall: 0.1, // 背壁の厚み（図示用）
+  };
+
+  const svgW = 560, svgH = 380;
+  const pad = { top: 60, right: 80, bottom: 60, left: 80 };
+  const drawW = svgW - pad.left - pad.right;
+  const drawH = svgH - pad.top - pad.bottom;
+
+  const scaleX = drawW / spec.W;
+  const scaleY = drawH / spec.H;
+
+  const svg = d3.select('#plan-view').append('svg')
+    .attr('width', svgW).attr('height', svgH);
+
+  const g = svg.append('g').attr('transform', `translate(${pad.left},${pad.top})`);
+
+  // ヘルパー: 実寸 → px
+  const sx = v => v * scaleX;
+  const sy = v => v * scaleY;
+
+  // --- 地面背景 ---
+  g.append('rect').attr('x',0).attr('y',0)
+    .attr('width', sx(spec.W)).attr('height', sy(spec.H))
+    .attr('fill', C.ground).attr('stroke','#aaa').attr('stroke-width',1);
+
+  // --- 棚ゾーン（全体輪郭内）---
+  // 棚は池の外縁から内側へ。背壁は0時側。
+  // 棚の内側境界
+  const shelf0_y = sy(spec.shelf_0);           // 0時棚下端(y)
+  const shelf6_y = sy(spec.H - spec.shelf_6);  // 6時棚上端(y)
+  const shelf3_x = sx(spec.shelf_3);           // 3時棚右端(x)
+  const shelf9_x = sx(spec.W - spec.shelf_9);  // 9時棚左端(x)
+
+  // 棚エリア（全外枠 minus 深部 = 棚+スロープ）
+  // ① 0時棚（上）
+  g.append('rect').attr('x',0).attr('y',0)
+    .attr('width', sx(spec.W)).attr('height', shelf0_y)
+    .attr('fill', C.shelf).attr('stroke','none');
+
+  // ② 6時棚（下）
+  g.append('rect').attr('x',0).attr('y', shelf6_y)
+    .attr('width', sx(spec.W)).attr('height', sy(spec.shelf_6))
+    .attr('fill', C.sesb).attr('stroke','none');
+
+  // ③ 3時棚（左）中央帯
+  g.append('rect').attr('x',0).attr('y', shelf0_y)
+    .attr('width', shelf3_x).attr('height', shelf6_y - shelf0_y)
+    .attr('fill', C.shelf).attr('stroke','none');
+
+  // ④ 9時棚（右）中央帯
+  g.append('rect').attr('x', shelf9_x).attr('y', shelf0_y)
+    .attr('width', sx(spec.shelf_9)).attr('height', shelf6_y - shelf0_y)
+    .attr('fill', C.shelf).attr('stroke','none');
+
+  // --- スロープゾーン ---
+  const slope0_y = shelf0_y + sy(spec.slope);
+  const slope6_y = shelf6_y - sy(spec.slope);
+  const slope3_x = shelf3_x + sx(spec.slope);
+  const slope9_x = shelf9_x - sx(spec.slope);
+
+  // 0時スロープ
+  g.append('rect').attr('x', shelf3_x).attr('y', shelf0_y)
+    .attr('width', shelf9_x - shelf3_x).attr('height', sy(spec.slope))
+    .attr('fill', C.slope).attr('stroke','none');
+
+  // 6時スロープ
+  g.append('rect').attr('x', shelf3_x).attr('y', slope6_y)
+    .attr('width', shelf9_x - shelf3_x).attr('height', sy(spec.slope))
+    .attr('fill', C.slope).attr('stroke','none');
+
+  // 3時スロープ
+  g.append('rect').attr('x', shelf3_x).attr('y', slope0_y)
+    .attr('width', sx(spec.slope)).attr('height', slope6_y - slope0_y)
+    .attr('fill', C.slope).attr('stroke','none');
+
+  // 9時スロープ
+  g.append('rect').attr('x', slope9_x).attr('y', slope0_y)
+    .attr('width', sx(spec.slope)).attr('height', slope6_y - slope0_y)
+    .attr('fill', C.slope).attr('stroke','none');
+
+  // コーナースロープ（対角）
+  const corners = [
+    [shelf3_x, shelf0_y, sx(spec.slope), sy(spec.slope)],
+    [slope9_x, shelf0_y, sx(spec.slope), sy(spec.slope)],
+    [shelf3_x, slope6_y, sx(spec.slope), sy(spec.slope)],
+    [slope9_x, slope6_y, sx(spec.slope), sy(spec.slope)],
+  ];
+  corners.forEach(([x,y,w,h]) => {
+    g.append('rect').attr('x',x).attr('y',y).attr('width',w).attr('height',h)
+      .attr('fill', C.slope).attr('stroke','none');
+  });
+
+  // --- 深部 ---
+  g.append('rect')
+    .attr('x', slope3_x).attr('y', slope0_y)
+    .attr('width', slope9_x - slope3_x).attr('height', slope6_y - slope0_y)
+    .attr('fill', C.deep).attr('stroke','#3a7abf').attr('stroke-width',1.5);
+
+  // --- 0時背壁（太線で表現）---
+  g.append('rect').attr('x',0).attr('y',0)
+    .attr('width', sx(spec.W)).attr('height', sy(0.08))
+    .attr('fill', C.wall);
+
+  // --- 縦排水溝接続（9時側壁面）---
+  const drainY = shelf6_y - sy(0.3); // 棚の深さ位置に合わせる
+  g.append('rect')
+    .attr('x', sx(spec.W) - 6).attr('y', drainY - 12)
+    .attr('width', 6).attr('height', 24)
+    .attr('fill', C.drain).attr('opacity', 0.85);
+  g.append('text')
+    .attr('x', sx(spec.W) + 6).attr('y', drainY + 4)
+    .attr('font-size', 10).attr('fill', C.drain)
+    .text('縦排水溝接続');
+
+  // --- 溢流点（9時側）---
+  const overflowY = sy(spec.H * 0.3);
+  g.append('circle')
+    .attr('cx', sx(spec.W)).attr('cy', overflowY)
+    .attr('r', 6).attr('fill', C.overflow).attr('opacity', 0.85);
+  g.append('text')
+    .attr('x', sx(spec.W) + 6).attr('y', overflowY - 8)
+    .attr('font-size', 10).attr('fill', C.overflow)
+    .text('溢流点');
+
+  // --- 断面線 A（短辺方向）---
+  const secA_y = sy(spec.H / 2);
+  g.append('line')
+    .attr('x1', -20).attr('y1', secA_y).attr('x2', sx(spec.W)+20).attr('y2', secA_y)
+    .attr('stroke', '#c00').attr('stroke-width', 1.5).attr('stroke-dasharray','6,3');
+  g.append('text').attr('x', -24).attr('y', secA_y+4)
+    .attr('font-size',11).attr('fill','#c00').attr('text-anchor','end').text('A');
+  g.append('text').attr('x', sx(spec.W)+24).attr('y', secA_y+4)
+    .attr('font-size',11).attr('fill','#c00').attr('text-anchor','start').text('A\'');
+
+  // --- 断面線 B（長辺方向）---
+  const secB_x = sx(spec.W / 2);
+  g.append('line')
+    .attr('x1', secB_x).attr('y1', -20).attr('x2', secB_x).attr('y2', sy(spec.H)+20)
+    .attr('stroke', '#00a').attr('stroke-width', 1.5).attr('stroke-dasharray','6,3');
+  g.append('text').attr('x', secB_x).attr('y', -24)
+    .attr('font-size',11).attr('fill','#00a').attr('text-anchor','middle').text('B');
+  g.append('text').attr('x', secB_x).attr('y', sy(spec.H)+32)
+    .attr('font-size',11).attr('fill','#00a').attr('text-anchor','middle').text('B\'');
+
+  // --- 池外枠 ---
+  g.append('rect').attr('x',0).attr('y',0)
+    .attr('width', sx(spec.W)).attr('height', sy(spec.H))
+    .attr('fill','none').attr('stroke','#555').attr('stroke-width',2);
+
+  // --- 寸法線・ラベル ---
+  // 上部：全幅 9m
+  const arrowY = -36;
+  addDimLine(g, 0, arrowY, sx(spec.W), arrowY, '9m（3時↔9時）', '#333');
+  // 左側：全高 5m
+  const arrowX = -50;
+  addDimLineV(g, arrowX, 0, arrowX, sy(spec.H), '5m（0時↔6時）', '#333');
+
+  // 内部ラベル
+  const labelStyle = { fontSize: 11, fill: '#333', textAnchor: 'middle' };
+
+  // 深部ラベル
+  const deepCx = (slope3_x + slope9_x) / 2;
+  const deepCy = (slope0_y + slope6_y) / 2;
+  g.append('text').attr('x', deepCx).attr('y', deepCy - 8)
+    .attr('font-size', 12).attr('font-weight','bold').attr('fill','white').attr('text-anchor','middle')
+    .text('最深部');
+  g.append('text').attr('x', deepCx).attr('y', deepCy + 8)
+    .attr('font-size', 11).attr('fill','white').attr('text-anchor','middle')
+    .text('70cm深 (約2×5.7m)');
+
+  // 0時側ラベル
+  g.append('text').attr('x', sx(spec.W/2)).attr('y', shelf0_y/2 + 4)
+    .attr('font-size', 10).attr('fill', '#2c4a1e').attr('text-anchor','middle')
+    .text('0時棚 0.3m');
+
+  // 6時側ラベル
+  g.append('text').attr('x', sx(spec.W/2)).attr('y', (shelf6_y + sy(spec.H))/2 + 4)
+    .attr('font-size', 10).attr('fill', '#2c4a1e').attr('text-anchor','middle')
+    .text('6時棚 0.8m（ヨシ帯）');
+
+  // 3時・9時ラベル
+  g.append('text').attr('x', shelf3_x/2).attr('y', sy(spec.H/2) + 4)
+    .attr('font-size', 10).attr('fill', '#2c4a1e').attr('text-anchor','middle')
+    .text('3時棚\n0.7m');
+  g.append('text').attr('x', (shelf9_x + sx(spec.W))/2).attr('y', sy(spec.H/2) + 4)
+    .attr('font-size', 10).attr('fill', '#2c4a1e').attr('text-anchor','middle')
+    .text('9時棚\n0.7m');
+
+  // 方角ラベル
+  const dirs = [
+    { label: '0時（北東）', x: sx(spec.W/2), y: -10, anchor: 'middle' },
+    { label: '6時（セスバニア境界）', x: sx(spec.W/2), y: sy(spec.H)+14, anchor: 'middle' },
+    { label: '3時', x: -8, y: sy(spec.H/2), anchor: 'end' },
+    { label: '9時', x: sx(spec.W)+8, y: sy(spec.H/2), anchor: 'start' },
+  ];
+  dirs.forEach(d => {
+    g.append('text').attr('x', d.x).attr('y', d.y)
+      .attr('font-size', 11).attr('font-weight', 'bold').attr('fill', '#555')
+      .attr('text-anchor', d.anchor).text(d.label);
+  });
+
+  // 北矢印
+  const nx = sx(spec.W) + 52, ny = 20;
+  g.append('text').attr('x', nx).attr('y', ny - 14)
+    .attr('font-size', 12).attr('font-weight','bold').attr('fill','#555').attr('text-anchor','middle')
+    .text('N');
+  g.append('line').attr('x1', nx).attr('y1', ny-10).attr('x2', nx).attr('y2', ny+10)
+    .attr('stroke','#555').attr('stroke-width',2)
+    .attr('marker-end','url(#arrow-n)');
+  const defs = svg.append('defs');
+  defs.append('marker').attr('id','arrow-n').attr('markerWidth',6).attr('markerHeight',6)
+    .attr('refX',3).attr('refY',6).attr('orient','auto')
+    .append('path').attr('d','M0,6 L3,0 L6,6').attr('fill','#555');
+})();
+
+// ============================================================
+// ② 断面図A — 短辺（0時↔6時、5m）
+// ============================================================
+(function drawSectionShort() {
+  // 実寸: 5m 水平, 深さ最大 0.7m
+  // ゾーン配置（左=0時, 右=6時）:
+  //  背壁(0.1m) | 棚0.3m | スロープ0.97m | 深部1.96m | スロープ0.97m | 棚0.8m
+  const spec = {
+    total_w: 5,   // m
+    backwall: 0.1,
+    shelf_0: 0.3,
+    slope_w: 0.97,
+    deep_w: 1.96,
+    shelf_6: 0.8,
+    shelf_d: 0.25,  // 棚の深さ 25cm
+    deep_d: 0.70,   // 最深部 70cm
+    backwall_h: 0.40, // 0時背壁の高さ
+  };
+
+  const svgW = 560, svgH = 300;
+  const pad = { top: 50, right: 40, bottom: 70, left: 60 };
+  const drawW = svgW - pad.left - pad.right;
+  const drawH = svgH - pad.top - pad.bottom;
+
+  // スケール（実寸→px）
+  // 水平: 5m → drawW
+  // 垂直: 1.5m（背壁含め余裕持って）→ drawH
+  const scaleX = drawW / spec.total_w;
+  const scaleH = drawH / 1.1; // 1.1m の深さ空間
+
+  const svg = d3.select('#section-short').append('svg')
+    .attr('width', svgW).attr('height', svgH);
+  const g = svg.append('g').attr('transform', `translate(${pad.left},${pad.top})`);
+
+  const sx = v => v * scaleX;
+  const sd = v => v * scaleH; // 深さ方向（下向き正）
+
+  // 地表ライン y = 0
+  const groundY = 0;
+
+  // 各ゾーンのx座標
+  const x0 = 0;
+  const x_bw_end = sx(spec.backwall);
+  const x_shelf0_end = x_bw_end + sx(spec.shelf_0);
+  const x_slope0_end = x_shelf0_end + sx(spec.slope_w);
+  const x_deep_end = x_slope0_end + sx(spec.deep_w);
+  const x_slope6_end = x_deep_end + sx(spec.slope_w);
+  const x_shelf6_end = x_slope6_end + sx(spec.shelf_6);
+
+  const shelfY = sd(spec.shelf_d);     // 棚底 y
+  const deepY  = sd(spec.deep_d);      // 深部底 y
+  const wallTopY = -sd(spec.backwall_h); // 背壁上端（地表より上）
+
+  // --- 土壌背景 ---
+  g.append('rect').attr('x', x0).attr('y', groundY)
+    .attr('width', sx(spec.total_w)).attr('height', drawH + 20)
+    .attr('fill', '#e0d0a8');
+
+  // --- 空（地表より上）---
+  g.append('rect').attr('x', x0).attr('y', wallTopY - 10)
+    .attr('width', sx(spec.total_w)).attr('height', -wallTopY + 10)
+    .attr('fill', C.sky);
+
+  // 断面形状のポリライン
+  // 左=0時側
+  const profilePoints = [
+    [x_bw_end, groundY],         // 背壁右下（地表）
+    [x_bw_end, shelfY],          // 0時棚 地表（棚高さは地表から掘削）→ 棚面
+    [x_shelf0_end, shelfY],      // 0時棚 端
+    [x_slope0_end, deepY],       // スロープ下端
+    [x_deep_end, deepY],         // 深部底 終端
+    [x_slope6_end, shelfY],      // スロープ上端（6時側）
+    [x_shelf6_end, shelfY],      // 6時棚 端（地表へ）
+    [x_shelf6_end, groundY],     // 地表
+  ];
+
+  // 池内部（水色）
+  const waterPoly = [...profilePoints, [x_shelf6_end, groundY], [x_bw_end, groundY]];
+  g.append('polygon')
+    .attr('points', profilePoints.map(p=>`${p[0]},${p[1]}`).join(' ') + ` ${x_shelf6_end},${groundY} ${x_bw_end},${groundY}`)
+    .attr('fill', C.water);
+
+  // 棚ゾーン着色
+  // 0時棚
+  g.append('polygon')
+    .attr('points', `${x_bw_end},${groundY} ${x_shelf0_end},${groundY} ${x_shelf0_end},${shelfY} ${x_bw_end},${shelfY}`)
+    .attr('fill', C.shelf).attr('opacity', 0.7);
+  // 6時棚
+  g.append('polygon')
+    .attr('points', `${x_slope6_end},${shelfY} ${x_shelf6_end},${shelfY} ${x_shelf6_end},${groundY} ${x_slope6_end},${groundY}`)
+    .attr('fill', C.sesb).attr('opacity', 0.7);
+  // スロープ0時
+  g.append('polygon')
+    .attr('points', `${x_shelf0_end},${groundY} ${x_slope0_end},${groundY} ${x_slope0_end},${deepY} ${x_shelf0_end},${shelfY}`)
+    .attr('fill', C.slope).attr('opacity', 0.6);
+  // スロープ6時
+  g.append('polygon')
+    .attr('points', `${x_deep_end},${deepY} ${x_slope6_end},${groundY} ${x_shelf6_end-sx(spec.shelf_6)},${groundY} ${x_slope6_end},${shelfY}`)
+    .attr('fill', C.slope).attr('opacity', 0.6);
+  // 深部
+  g.append('rect')
+    .attr('x', x_slope0_end).attr('y', deepY - sd(spec.deep_d - spec.shelf_d))
+    .attr('width', sx(spec.deep_w)).attr('height', sd(spec.deep_d - spec.shelf_d))
+    .attr('fill', C.deep).attr('opacity', 0.5);
+
+  // --- 背壁 ---
+  g.append('rect')
+    .attr('x', x0).attr('y', wallTopY)
+    .attr('width', x_bw_end).attr('height', sd(spec.backwall_h))
+    .attr('fill', C.wall).attr('opacity', 0.9);
+
+  // 背壁ハッチング
+  for (let i = 0; i < 6; i++) {
+    const hy = wallTopY + i * 10;
+    g.append('line').attr('x1', x0).attr('y1', hy).attr('x2', x_bw_end).attr('y2', hy + 10)
+      .attr('stroke', '#5a3a00').attr('stroke-width', 0.8).attr('opacity', 0.5);
+  }
+
+  // --- 断面輪郭線 ---
+  g.append('polyline')
+    .attr('points', profilePoints.map(p => `${p[0]},${p[1]}`).join(' '))
+    .attr('fill', 'none').attr('stroke', '#333').attr('stroke-width', 2.5);
+
+  // --- 地表ライン ---
+  g.append('line')
+    .attr('x1', x_bw_end).attr('y1', groundY)
+    .attr('x2', x_shelf6_end).attr('y2', groundY)
+    .attr('stroke', '#555').attr('stroke-width', 2).attr('stroke-dasharray','4,2');
+
+  // --- 水位ライン（棚と同じ深さ想定）---
+  const waterY = shelfY * 0.7;
+  g.append('line')
+    .attr('x1', x_bw_end).attr('y1', waterY).attr('x2', x_shelf6_end).attr('y2', waterY)
+    .attr('stroke', '#3a7abf').attr('stroke-width', 1).attr('stroke-dasharray','8,3').attr('opacity', 0.6);
+
+  // 25°ラベル（スロープ上）
+  const angleX = (x_shelf0_end + x_slope0_end) / 2 - 5;
+  const angleY = (shelfY + deepY) / 2 + 12;
+  g.append('text').attr('x', angleX).attr('y', angleY)
+    .attr('font-size', 10).attr('fill', '#2c5a1e').attr('text-anchor','middle')
+    .text('25°');
+
+  // --- 寸法線 ---
+  // 水平寸法（各ゾーン）
+  const dimY_top = groundY - 25;
+  const zones_h = [
+    { x1: x0, x2: x_bw_end, label: '背壁\n0.1m' },
+    { x1: x_bw_end, x2: x_shelf0_end, label: '棚0.3m' },
+    { x1: x_shelf0_end, x2: x_slope0_end, label: 'スロープ\n0.97m' },
+    { x1: x_slope0_end, x2: x_deep_end, label: '深部1.96m' },
+    { x1: x_deep_end, x2: x_slope6_end, label: 'スロープ\n0.97m' },
+    { x1: x_slope6_end, x2: x_shelf6_end, label: '棚0.8m' },
+  ];
+  zones_h.forEach(z => {
+    const mid = (z.x1 + z.x2) / 2;
+    g.append('line').attr('x1',z.x1).attr('y1',dimY_top-6).attr('x2',z.x2).attr('y2',dimY_top-6)
+      .attr('stroke','#888').attr('stroke-width',1);
+    g.append('line').attr('x1',z.x1).attr('y1',dimY_top-10).attr('x2',z.x1).attr('y2',dimY_top-2)
+      .attr('stroke','#888').attr('stroke-width',1);
+    g.append('line').attr('x1',z.x2).attr('y1',dimY_top-10).attr('x2',z.x2).attr('y2',dimY_top-2)
+      .attr('stroke','#888').attr('stroke-width',1);
+    const lines = z.label.split('\n');
+    lines.forEach((ln, i) => {
+      g.append('text').attr('x', mid).attr('y', dimY_top - 14 - (lines.length - 1 - i) * 12)
+        .attr('font-size', 9).attr('fill','#555').attr('text-anchor','middle').text(ln);
+    });
+  });
+
+  // 垂直寸法
+  addDimLineV(g, x_shelf6_end + 20, groundY, x_shelf6_end + 20, shelfY, '25cm\n棚', '#555', true);
+  addDimLineV(g, x_shelf6_end + 48, groundY, x_shelf6_end + 48, deepY, '70cm', '#333', true);
+
+  // 背壁高さ
+  addDimLineV(g, x0 - 20, wallTopY, x0 - 20, groundY, '40cm', '#8B6914', true);
+
+  // 軸ラベル
+  g.append('text').attr('x', sx(spec.total_w)/2).attr('y', drawH + 55)
+    .attr('font-size', 11).attr('fill','#333').attr('text-anchor','middle')
+    .text('← 0時（北東側）　　断面A–A\'　　6時（セスバニア境界）→');
+
+  // 方向ラベル
+  g.append('text').attr('x', x_bw_end/2).attr('y', -6)
+    .attr('font-size', 11).attr('font-weight','bold').attr('fill','#555').attr('text-anchor','middle')
+    .text('0時');
+  g.append('text').attr('x', x_shelf6_end).attr('y', -6)
+    .attr('font-size', 11).attr('font-weight','bold').attr('fill','#555').attr('text-anchor','middle')
+    .text('6時');
+})();
+
+// ============================================================
+// ③ 断面図B — 長辺（3時↔9時、9m）
+// ============================================================
+(function drawSectionLong() {
+  const spec = {
+    total_w: 9,
+    shelf_3: 0.7,
+    slope_w: 0.97,
+    deep_w: 5.66,
+    shelf_9: 0.7,
+    shelf_d: 0.25,
+    deep_d:  0.70,
+  };
+
+  const svgW = 600, svgH = 260;
+  const pad = { top: 50, right: 60, bottom: 70, left: 60 };
+  const drawW = svgW - pad.left - pad.right;
+  const drawH = svgH - pad.top - pad.bottom;
+
+  const scaleX = drawW / spec.total_w;
+  const scaleH = drawH / 1.0;
+
+  const svg = d3.select('#section-long').append('svg')
+    .attr('width', svgW).attr('height', svgH);
+  const g = svg.append('g').attr('transform', `translate(${pad.left},${pad.top})`);
+
+  const sx = v => v * scaleX;
+  const sd = v => v * scaleH;
+
+  const x_shelf3_end = sx(spec.shelf_3);
+  const x_slope3_end = x_shelf3_end + sx(spec.slope_w);
+  const x_deep_end   = x_slope3_end + sx(spec.deep_w);
+  const x_slope9_end = x_deep_end + sx(spec.slope_w);
+  const x_shelf9_end = x_slope9_end + sx(spec.shelf_9);
+
+  const groundY = 0;
+  const shelfY  = sd(spec.shelf_d);
+  const deepY   = sd(spec.deep_d);
+
+  // 土壌背景
+  g.append('rect').attr('x',0).attr('y',groundY)
+    .attr('width', sx(spec.total_w)).attr('height', drawH + 20)
+    .attr('fill', '#e0d0a8');
+  // 空
+  g.append('rect').attr('x',0).attr('y', -40)
+    .attr('width', sx(spec.total_w)).attr('height', 40)
+    .attr('fill', C.sky);
+
+  // プロファイル
+  const profilePoints = [
+    [0, groundY],
+    [x_shelf3_end, groundY],
+    [x_shelf3_end, shelfY],
+    [x_slope3_end, deepY],
+    [x_deep_end, deepY],
+    [x_slope9_end, shelfY],
+    [x_shelf9_end, shelfY],
+    [x_shelf9_end, groundY],
+    [sx(spec.total_w), groundY],
+  ];
+
+  // 水着色
+  g.append('polygon')
+    .attr('points', profilePoints.map(p=>`${p[0]},${p[1]}`).join(' '))
+    .attr('fill', C.water);
+
+  // ゾーン着色
+  // 3時棚
+  g.append('polygon')
+    .attr('points', `0,${groundY} ${x_shelf3_end},${groundY} ${x_shelf3_end},${shelfY} 0,${shelfY}`)
+    .attr('fill', C.shelf).attr('opacity', 0.7);
+  // 9時棚
+  g.append('polygon')
+    .attr('points', `${x_slope9_end},${shelfY} ${x_shelf9_end},${shelfY} ${x_shelf9_end},${groundY} ${sx(spec.total_w)},${groundY} ${sx(spec.total_w)},${shelfY}`)
+    .attr('fill', C.shelf).attr('opacity', 0.7);
+  // スロープ3時
+  g.append('polygon')
+    .attr('points', `${x_shelf3_end},${shelfY} ${x_slope3_end},${deepY} ${x_slope3_end},${groundY} ${x_shelf3_end},${groundY}`)
+    .attr('fill', C.slope).attr('opacity', 0.6);
+  // スロープ9時
+  g.append('polygon')
+    .attr('points', `${x_deep_end},${deepY} ${x_slope9_end},${shelfY} ${x_shelf9_end},${shelfY} ${x_slope9_end},${groundY} ${x_deep_end},${groundY}`)
+    .attr('fill', C.slope).attr('opacity', 0.6);
+  // 深部
+  g.append('rect')
+    .attr('x', x_slope3_end).attr('y', shelfY)
+    .attr('width', sx(spec.deep_w)).attr('height', deepY - shelfY)
+    .attr('fill', C.deep).attr('opacity', 0.5);
+
+  // 縦排水溝接続（9時側）
+  g.append('rect')
+    .attr('x', sx(spec.total_w) - 6).attr('y', shelfY - 8)
+    .attr('width', 8).attr('height', 16)
+    .attr('fill', C.drain).attr('opacity', 0.9);
+
+  // 溢流点
+  g.append('circle')
+    .attr('cx', sx(spec.total_w)).attr('cy', groundY * 0 + shelfY * 0.3)
+    .attr('r', 7).attr('fill', C.overflow).attr('opacity', 0.85);
+  g.append('text').attr('x', sx(spec.total_w) + 8).attr('y', shelfY * 0.3 + 4)
+    .attr('font-size', 10).attr('fill', C.overflow).text('溢流点');
+
+  // 輪郭
+  g.append('polyline')
+    .attr('points', profilePoints.map(p=>`${p[0]},${p[1]}`).join(' '))
+    .attr('fill','none').attr('stroke','#333').attr('stroke-width',2.5);
+
+  // 地表ライン
+  g.append('line').attr('x1',0).attr('y1',groundY).attr('x2',sx(spec.total_w)).attr('y2',groundY)
+    .attr('stroke','#555').attr('stroke-width',2).attr('stroke-dasharray','4,2');
+
+  // 25°ラベル
+  g.append('text').attr('x', (x_shelf3_end + x_slope3_end)/2)
+    .attr('y', (shelfY + deepY)/2 + 12)
+    .attr('font-size', 10).attr('fill','#2c5a1e').attr('text-anchor','middle').text('25°');
+  g.append('text').attr('x', (x_deep_end + x_slope9_end)/2)
+    .attr('y', (shelfY + deepY)/2 + 12)
+    .attr('font-size', 10).attr('fill','#2c5a1e').attr('text-anchor','middle').text('25°');
+
+  // 寸法線
+  const dimY_top = groundY - 25;
+  const zones_h = [
+    { x1: 0, x2: x_shelf3_end, label: '棚0.7m' },
+    { x1: x_shelf3_end, x2: x_slope3_end, label: 'スロープ\n0.97m' },
+    { x1: x_slope3_end, x2: x_deep_end, label: '深部5.66m' },
+    { x1: x_deep_end, x2: x_slope9_end, label: 'スロープ\n0.97m' },
+    { x1: x_slope9_end, x2: sx(spec.total_w), label: '棚0.7m' },
+  ];
+  zones_h.forEach(z => {
+    const mid = (z.x1 + z.x2) / 2;
+    g.append('line').attr('x1',z.x1).attr('y1',dimY_top-6).attr('x2',z.x2).attr('y2',dimY_top-6)
+      .attr('stroke','#888').attr('stroke-width',1);
+    g.append('line').attr('x1',z.x1).attr('y1',dimY_top-10).attr('x2',z.x1).attr('y2',dimY_top-2)
+      .attr('stroke','#888').attr('stroke-width',1);
+    g.append('line').attr('x1',z.x2).attr('y1',dimY_top-10).attr('x2',z.x2).attr('y2',dimY_top-2)
+      .attr('stroke','#888').attr('stroke-width',1);
+    const lines = z.label.split('\n');
+    lines.forEach((ln, i) => {
+      g.append('text').attr('x', mid).attr('y', dimY_top - 14 - (lines.length - 1 - i) * 12)
+        .attr('font-size', 9).attr('fill','#555').attr('text-anchor','middle').text(ln);
+    });
+  });
+
+  addDimLineV(g, sx(spec.total_w) + 20, groundY, sx(spec.total_w) + 20, shelfY, '25cm', '#555', true);
+  addDimLineV(g, sx(spec.total_w) + 44, groundY, sx(spec.total_w) + 44, deepY, '70cm', '#333', true);
+
+  // 縦排水溝ラベル
+  g.append('text').attr('x', sx(spec.total_w) + 6).attr('y', shelfY + 4)
+    .attr('font-size', 9).attr('fill', C.drain).text('縦排水溝');
+
+  // 軸ラベル
+  g.append('text').attr('x', sx(spec.total_w)/2).attr('y', drawH + 55)
+    .attr('font-size', 11).attr('fill','#333').attr('text-anchor','middle')
+    .text('← 3時　　断面B–B\'　　9時 →');
+
+  g.append('text').attr('x', 0).attr('y', -8)
+    .attr('font-size', 11).attr('font-weight','bold').attr('fill','#555').attr('text-anchor','middle')
+    .text('3時');
+  g.append('text').attr('x', sx(spec.total_w)).attr('y', -8)
+    .attr('font-size', 11).attr('font-weight','bold').attr('fill','#555').attr('text-anchor','middle')
+    .text('9時');
+})();
+
+// ============================================================
+// ユーティリティ：寸法線
+// ============================================================
+function addDimLine(g, x1, y, x2, _, label, color) {
+  g.append('line').attr('x1',x1).attr('y1',y-4).attr('x2',x2).attr('y2',y-4)
+    .attr('stroke',color).attr('stroke-width',1);
+  g.append('line').attr('x1',x1).attr('y1',y-8).attr('x2',x1).attr('y2',y)
+    .attr('stroke',color).attr('stroke-width',1);
+  g.append('line').attr('x1',x2).attr('y1',y-8).attr('x2',x2).attr('y2',y)
+    .attr('stroke',color).attr('stroke-width',1);
+  g.append('text').attr('x',(x1+x2)/2).attr('y',y-8)
+    .attr('font-size',11).attr('fill',color).attr('text-anchor','middle').text(label);
+}
+
+function addDimLineV(g, x, y1, y2_px, _, label, color, right=false) {
+  // y2_px is already in px
+  const y2 = y2_px;
+  g.append('line').attr('x1',x+4).attr('y1',y1).attr('x2',x+4).attr('y2',y2)
+    .attr('stroke',color).attr('stroke-width',1);
+  g.append('line').attr('x1',x).attr('y1',y1).attr('x2',x+8).attr('y2',y1)
+    .attr('stroke',color).attr('stroke-width',1);
+  g.append('line').attr('x1',x).attr('y1',y2).attr('x2',x+8).attr('y2',y2)
+    .attr('stroke',color).attr('stroke-width',1);
+  const lines = label.split('\n');
+  const midY = (y1 + y2) / 2;
+  lines.forEach((ln, i) => {
+    const offset = (i - (lines.length-1)/2) * 12;
+    g.append('text').attr('x', x + 12).attr('y', midY + offset + 4)
+      .attr('font-size',10).attr('fill',color).attr('text-anchor','start').text(ln);
+  });
+}
+</script>
+</body>
+</html>
