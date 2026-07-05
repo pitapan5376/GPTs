@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>ローマ字→漢字変換</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f7;
+            padding: 16px;
+            padding-bottom: 32px;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            font-size: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .gear-btn {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .gear-btn:active {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .body {
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: #667;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            font-size: 16px;
+            padding: 12px;
+            border: 2px solid #e5e5e7;
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 12px;
+        }
+
+        .btn:active {
+            opacity: 0.7;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e5e5e7;
+            color: #333;
+        }
+
+        .btn-copy {
+            background: #34c759;
+            color: white;
+        }
+
+        .output-section {
+            margin-top: 20px;
+        }
+
+        .output-box {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid #e5e5e7;
+            border-radius: 8px;
+            font-size: 17px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #fafafa;
+        }
+
+        .output-box:empty::before {
+            content: '変換結果がここに表示されます';
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 24px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .modal-input {
+            width: 100%;
+            font-size: 16px;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .model-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .model-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid #e5e5e7;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .model-option.selected {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .model-option-text {
+            flex: 1;
+        }
+
+        .model-option-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .model-option-desc {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .modal-buttons .btn {
+            margin-top: 0;
+        }
+
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeInOut 2.4s;
+            max-width: 80vw;
+            text-align: center;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            ローマ字→漢字変換
+            <button class="gear-btn" onclick="openSettings()">⚙</button>
+        </h1>
+        <div class="body">
+            <label for="romajiInput">ローマ字入力（スペース区切りでもベタ打ちでも可）</label>
+            <textarea id="romajiInput" placeholder="kyou wa ii tenki desu ne" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+            <button class="btn btn-primary" id="convertBtn" onclick="convertText()">変換する</button>
+
+            <div class="output-section">
+                <label>変換結果</label>
+                <div class="output-box" id="outputBox" contenteditable="true"></div>
+                <button class="btn btn-copy" onclick="copyOutput()">結果をコピー</button>
+                <div class="hint">結果は直接編集してからコピーもできます。</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">設定</div>
+
+            <label for="apiKeyInput">Anthropic APIキー</label>
+            <input type="password" id="apiKeyInput" class="modal-input" placeholder="sk-ant-..." autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="hint" style="margin-bottom:16px;">
+                キーはこの端末のブラウザ（localStorage）にのみ保存され、サーバーには送信されません。変換時にAnthropic社のAPIへ直接送信されます。console.anthropic.com で発行したAPIキーを入力してください。
+            </div>
+
+            <label>使用モデル</label>
+            <div class="model-options" id="modelOptions">
+                <div class="model-option" data-model="claude-haiku-4-5-20251001" onclick="selectModel('claude-haiku-4-5-20251001')">
+                    <div class="model-option-text">
+                        <div class="model-option-title">Claude Haiku 4.5（推奨）</div>
+                        <div class="model-option-desc">高速・低コスト</div>
+                    </div>
+                </div>
+                <div class="model-option" data-model="claude-sonnet-5" onclick="selectModel('claude-sonnet-5')">
+                    <div class="model-option-text">
+                        <div class="model-option-title">Claude Sonnet 5</div>
+                        <div class="model-option-desc">より高精度、コストと速度は劣る</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="clearApiKey()">キーを削除</button>
+                <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY_STORAGE = 'romajiConverterApiKey';
+        const MODEL_STORAGE = 'romajiConverterModel';
+        const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+        const ANTHROPIC_VERSION = '2023-06-01';
+
+        const SYSTEM_PROMPT = `あなたは日本語入力メソッド(IME)です。ユーザーが入力したローマ字表記(ヘボン式・訓令式いずれも、単語間のスペース有無も問わない)の日本語を、自然な現代日本語の漢字仮名交じり文に変換してください。
+
+ルール:
+- 出力は変換後の日本語の文章のみとし、説明・前置き・確認の言葉は一切付けない。
+- 文脈から最も自然で一般的な漢字表記を選ぶ。
+- 元の句読点・記号・数字・改行はそのまま活かして自然な位置に配置する。
+- ローマ字以外の文字（絵文字、英単語、記号）はそのまま出力に残す。
+- 意味が一意に定まらない場合は、最も一般的で日常的な変換を選ぶ。`;
+
+        function getModel() {
+            return localStorage.getItem(MODEL_STORAGE) || DEFAULT_MODEL;
+        }
+
+        function selectModel(model) {
+            document.querySelectorAll('.model-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.model === model);
+            });
+            settingsPendingModel = model;
+        }
+
+        let settingsPendingModel = DEFAULT_MODEL;
+
+        function openSettings() {
+            document.getElementById('apiKeyInput').value = localStorage.getItem(API_KEY_STORAGE) || '';
+            settingsPendingModel = getModel();
+            selectModel(settingsPendingModel);
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem(API_KEY_STORAGE, key);
+            }
+            localStorage.setItem(MODEL_STORAGE, settingsPendingModel);
+            closeSettings();
+            showToast('設定を保存しました');
+        }
+
+        function clearApiKey() {
+            if (confirm('保存されているAPIキーを削除しますか？')) {
+                localStorage.removeItem(API_KEY_STORAGE);
+                document.getElementById('apiKeyInput').value = '';
+                showToast('APIキーを削除しました');
+            }
+        }
+
+        async function convertText() {
+            const input = document.getElementById('romajiInput').value.trim();
+            if (!input) {
+                showToast('ローマ字を入力してください');
+                return;
+            }
+
+            const apiKey = localStorage.getItem(API_KEY_STORAGE);
+            if (!apiKey) {
+                showToast('先にAPIキーを設定してください');
+                openSettings();
+                return;
+            }
+
+            const btn = document.getElementById('convertBtn');
+            const outputBox = document.getElementById('outputBox');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>変換中...';
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': ANTHROPIC_VERSION,
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: getModel(),
+                        max_tokens: 1024,
+                        system: SYSTEM_PROMPT,
+                        messages: [{ role: 'user', content: input }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const message = (data && data.error && data.error.message) || `エラー (HTTP ${response.status})`;
+                    throw new Error(message);
+                }
+
+                const text = data.content && data.content[0] && data.content[0].text;
+                outputBox.textContent = text || '';
+                if (!text) {
+                    showToast('変換結果を取得できませんでした');
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('変換に失敗しました: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '変換する';
+            }
+        }
+
+        function copyOutput() {
+            const text = document.getElementById('outputBox').textContent;
+            if (!text) {
+                showToast('コピーする内容がありません');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('コピーしました');
+            }).catch(() => {
+                showToast('コピーに失敗しました');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2400);
+        }
+
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'settingsModal') {
+                closeSettings();
+            }
+        });
+
+        // Initialize
+        if (!localStorage.getItem(API_KEY_STORAGE)) {
+            openSettings();
+        }
+    </script>
+</body>
+</html>
