@@ -287,6 +287,7 @@
                 <label>変換結果</label>
                 <div class="output-box" id="outputBox" contenteditable="true"></div>
                 <button class="btn btn-copy" onclick="copyOutput()">結果をコピー</button>
+                <button class="btn btn-secondary" onclick="registerToDictionary()">この変換をユーザー辞書に登録</button>
                 <div class="hint">結果は直接編集してからコピーもできます。</div>
             </div>
         </div>
@@ -318,6 +319,12 @@
                 </div>
             </div>
 
+            <label for="dictionaryInput">ユーザー辞書（1行に1件、「よみ=変換後の表記」）</label>
+            <textarea id="dictionaryInput" class="modal-input" style="min-height:80px;" placeholder="yamada tarou=山田太郎&#10;gpts=GPTs" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+            <div class="hint" style="margin-bottom:16px;">
+                固有名詞や専門用語など、変換を固定したい単語をここに登録すると、変換時に優先されます。
+            </div>
+
             <div class="modal-buttons">
                 <button class="btn btn-secondary" onclick="clearApiKey()">キーを削除</button>
                 <button class="btn btn-primary" onclick="saveSettings()">保存</button>
@@ -328,6 +335,7 @@
     <script>
         const API_KEY_STORAGE = 'romajiConverterApiKey';
         const MODEL_STORAGE = 'romajiConverterModel';
+        const DICTIONARY_STORAGE = 'romajiConverterDictionary';
         const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
         const ANTHROPIC_VERSION = '2023-06-01';
 
@@ -344,6 +352,31 @@
             return localStorage.getItem(MODEL_STORAGE) || DEFAULT_MODEL;
         }
 
+        function getDictionaryEntries() {
+            const raw = localStorage.getItem(DICTIONARY_STORAGE) || '';
+            return raw.split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .map(line => {
+                    const idx = line.indexOf('=');
+                    if (idx < 0) return null;
+                    const reading = line.slice(0, idx).trim();
+                    const term = line.slice(idx + 1).trim();
+                    return (reading && term) ? { reading, term } : null;
+                })
+                .filter(Boolean);
+        }
+
+        function buildSystemPrompt() {
+            const entries = getDictionaryEntries();
+            if (entries.length === 0) return SYSTEM_PROMPT;
+            const glossary = entries.map(e => `- 「${e.reading}」→「${e.term}」`).join('\n');
+            return `${SYSTEM_PROMPT}
+
+ユーザー辞書（他の変換より優先し、必ずこの表記を使うこと）:
+${glossary}`;
+        }
+
         function selectModel(model) {
             document.querySelectorAll('.model-option').forEach(el => {
                 el.classList.toggle('selected', el.dataset.model === model);
@@ -355,6 +388,7 @@
 
         function openSettings() {
             document.getElementById('apiKeyInput').value = localStorage.getItem(API_KEY_STORAGE) || '';
+            document.getElementById('dictionaryInput').value = localStorage.getItem(DICTIONARY_STORAGE) || '';
             settingsPendingModel = getModel();
             selectModel(settingsPendingModel);
             document.getElementById('settingsModal').style.display = 'block';
@@ -370,6 +404,7 @@
                 localStorage.setItem(API_KEY_STORAGE, key);
             }
             localStorage.setItem(MODEL_STORAGE, settingsPendingModel);
+            localStorage.setItem(DICTIONARY_STORAGE, document.getElementById('dictionaryInput').value.trim());
             closeSettings();
             showToast('設定を保存しました');
         }
@@ -413,7 +448,7 @@
                     body: JSON.stringify({
                         model: getModel(),
                         max_tokens: 1024,
-                        system: SYSTEM_PROMPT,
+                        system: buildSystemPrompt(),
                         messages: [{ role: 'user', content: input }]
                     })
                 });
@@ -451,6 +486,21 @@
             }).catch(() => {
                 showToast('コピーに失敗しました');
             });
+        }
+
+        function registerToDictionary() {
+            const reading = document.getElementById('romajiInput').value.trim();
+            const term = document.getElementById('outputBox').textContent.trim();
+            if (!reading || !term) {
+                showToast('登録する変換がありません');
+                return;
+            }
+            const existing = localStorage.getItem(DICTIONARY_STORAGE) || '';
+            const lines = existing.split('\n').map(l => l.trim()).filter(Boolean);
+            const filtered = lines.filter(l => l.slice(0, l.indexOf('=')).trim() !== reading);
+            filtered.push(`${reading}=${term}`);
+            localStorage.setItem(DICTIONARY_STORAGE, filtered.join('\n'));
+            showToast('ユーザー辞書に登録しました');
         }
 
         function showToast(message) {
