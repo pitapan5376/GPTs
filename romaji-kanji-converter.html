@@ -310,9 +310,9 @@
                         <div class="model-option-desc">高速・低コスト</div>
                     </div>
                 </div>
-                <div class="model-option" data-model="claude-sonnet-5" onclick="selectModel('claude-sonnet-5')">
+                <div class="model-option" data-model="claude-sonnet-4-5" onclick="selectModel('claude-sonnet-4-5')">
                     <div class="model-option-text">
-                        <div class="model-option-title">Claude Sonnet 5</div>
+                        <div class="model-option-title">Claude Sonnet 4.5</div>
                         <div class="model-option-desc">より高精度、コストと速度は劣る</div>
                     </div>
                 </div>
@@ -425,7 +425,8 @@
                     throw new Error(message);
                 }
 
-                const text = data.content && data.content[0] && data.content[0].text;
+                const textBlock = (data.content || []).find(block => block.type === 'text');
+                const text = textBlock && textBlock.text;
                 outputBox.textContent = text || '';
                 if (!text) {
                     showToast('変換結果を取得できませんでした');
